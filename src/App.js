@@ -1,4 +1,5 @@
-import { useState , useEffect} from 'react';
+import React,{ useState }  from 'react';
+import { useEffect} from 'react';
 import { ethers } from 'ethers';
 import './App.css';
 import MACToken from './contracts/MACToken.json'
@@ -8,6 +9,8 @@ import MACaddress from './contracts/MACToken-contract-address.json'
 const tokenAddress = MACaddress.MACToken;
 
 function App() {
+
+  ////////////////// HOOKS \\\\\\\\\\\\\\\\\\\\\\\\\\
 const [balance, setBalance] = useState(null);
 const [userAccount, setUserAccount] = useState();
 const [amount, setAmount] = useState();
@@ -16,11 +19,12 @@ const [userAccountMintBurn, setUserAccountMintBurn] = useState();
 const [userAccountWhite, setUserAccountWhite] = useState();
 const [defaultAccount, setDefaultAccount] = useState(null);
 
-const [provider, setProvider]= useState(null);
-const [sigher, setSigner] = useState(null);
 const [contract, setContract] = useState(null);
+const [tokenSymbol, setTokenSymbol] = useState();
 
 const { ethereum } = window;
+
+////////////// CONNECT WALLET AND SHOW BALANCE\\\\\\\\\\\\\\\\\\\\\
 
   const connectWallet = async () => {
       const accounts = await ethereum.request({
@@ -46,6 +50,7 @@ const { ethereum } = window;
   const accountChangedHandler = (newAccount) => {
 		setDefaultAccount(newAccount);
 		updateEthers();
+    
 	}
 
   const chainChangedHandler = () => {
@@ -55,50 +60,47 @@ const { ethereum } = window;
 
 	// listen for account changes
 	window.ethereum.on('accountsChanged', accountChangedHandler);
-
 	window.ethereum.on('chainChanged', chainChangedHandler);
 
 	const updateEthers = () => {
-		let tempProvider = new ethers.providers.Web3Provider(window.ethereum);
-		setProvider(tempProvider);
-
-		let tempSigner = tempProvider.getSigner();
-		setSigner(tempSigner);
-
-		let tempContract = new ethers.Contract(tokenAddress, MACToken.abi, tempSigner);
-		setContract(tempContract);	
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const contractT = new ethers.Contract(tokenAddress, MACToken.abi, signer);
+    setContract(contractT);
 	}
 
   useEffect(() => {
 		if (contract != null) {
-			GetBalance();
-			
+    	updateTokenSymbol();
+      GetBalance();
 		}
 	}, [contract]);
 
+  const updateTokenSymbol = async function () {
+    let Symbol = await contract.symbol();
+    setTokenSymbol(Symbol);
+  }
 
-
-
+  /////////////////////// TRANSFER \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   async function sendCoins() {
-    if (typeof window.ethereum !== 'undefined') {
-      
+    if (typeof window.ethereum !== 'undefined') { 
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const contract = new ethers.Contract(tokenAddress, MACToken.abi, signer);
-      try{
+      if(amount >=await contract.balanceOf(signer)) { alert("You nave not enough tokens");}
       const transaction = await contract.transferTo(userAccount, amount);
       await transaction.wait();
       console.log(`${amount} Coins successfully sent to ${userAccount}`);
       setAmount(amount);
-      } catch (err){
-        alert("You nave not enough tokens",err)
-      }
+      
+      
+      
     }
   }
 
+  /////////////////////////   WHITELIST \\\\\\\\\\\\\\\\\\\\\\\\\\\\
   async function AddWhitelist(){
     if (typeof window.ethereum !== 'undefined') {
-      
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const contract = new ethers.Contract(tokenAddress, MACToken.abi, signer);
@@ -128,36 +130,34 @@ const { ethereum } = window;
   }
  
 
+////////////////////////////////// MINT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   async function mintTokens() {
     if (typeof window.ethereum !== 'undefined') {
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const contract = new ethers.Contract(tokenAddress, MACToken.abi, signer);
-      try{
+      if(!await contract.verifyUser(userAccountMintBurn)) { alert("You can not mint tokens");}
       const mintToken = await contract.mint(userAccountMintBurn, amount);
       await mintToken.wait();
       console.log(`${amount} were minted by ${userAccountMintBurn}`);
       setAmount(amount);
-      } catch (err){
-        alert("You nave not enough tokens",err)
-      }
+      
     }
   }
 
+  ///////////////////////////////// BURN \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   async function burnTokens() {
     if (typeof window.ethereum !== 'undefined') {
       
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const contract = new ethers.Contract(tokenAddress, MACToken.abi, signer);
-      try{
+      if(amount >=await contract.balanceOf(userAccountMintBurn)) { alert("You nave not enough tokens");}
         const burnToken = await contract.burn(userAccountMintBurn, amount);
         await burnToken.wait();
         console.log(`${amount} were burned by ${userAccountMintBurn}`);
         setAmount(amount);
-      } catch (err){
-        alert("You nave not enough tokens",err)
-      }
+      
      
     }
   }
@@ -167,7 +167,7 @@ const { ethereum } = window;
         <div className='walletCard'>
         <button className='button' onClick={connectWallet}>Connect Wallet</button>
                 <div className='r address'>Wallet Address: {defaultAccount}
-                <p>Balance: {balance} INT</p></div>
+                <p>Balance: {balance} {tokenSymbol}</p></div>
                 
         <div className='input'>
         <input onChange={e => setUserAccount(e.target.value)} placeholder="Account ID" />
