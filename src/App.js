@@ -87,7 +87,7 @@ const { ethereum } = window;
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const contract = new ethers.Contract(tokenAddress, MACToken.abi, signer);
-      if(amount >=await contract.balanceOf(signer)) { alert("You nave not enough tokens");}
+//       if(amount >=await contract.balanceOf(userAccount)) { alert("You nave not enough tokens");}
       const transaction = await contract.transferTo(userAccount, amount);
       await transaction.wait();
       console.log(`${amount} Coins successfully sent to ${userAccount}`);
